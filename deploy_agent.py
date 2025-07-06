@@ -16,6 +16,8 @@ You must:
 2. Use OpenAI API for conversation.
 3. Integrate tools or APIs mentioned.
 4. Keep code modular and clean.
+5. You must use the openai>=1.0.0 Python SDK syntax. Do not use openai.Completion.create().
+Instead, create a client with `client = OpenAI()` and then use `client.completions.create()` or `client.chat.completions.create()`.
 
 Return only the code, no explanation or text.
 """
