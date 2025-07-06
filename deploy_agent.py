@@ -135,5 +135,5 @@ def deploy_agent(prompt: str) -> str:
         raise Exception(f"Render deploy hook failed: {response.text}")
 
     # Return the URL of your agent-template Render app
-    return "https://agent-template.onrender.com"
+    return "https://agent-template-e5fi.onrender.com"
 
