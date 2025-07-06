@@ -2,3 +2,7 @@ fastapi
 uvicorn
 openai
 python-multipart
+streamlit
+python-dotenv
+PyGithub
+requests
