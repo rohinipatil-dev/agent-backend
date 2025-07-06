@@ -14,3 +14,4 @@ async def build_agent(prompt: Prompt):
         return {"url": deployment_url}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
