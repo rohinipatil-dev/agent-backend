@@ -8,20 +8,24 @@ from openai import OpenAI
 # Initialize OpenAI
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-SYSTEM_PROMPT = """You are a code-generating assistant.
+SYSTEM_PROMPT = """
+You are a code-generating assistant.
 Your task is to build a deployable Python script for an AI agent based on the user prompt.
 
 You must:
 1. Use Streamlit for UI if the agent is interactive.
 2. Use the OpenAI Python SDK (v1.0.0 or later). Do not use `openai.api_key = ...`.
 3. Use `from openai import OpenAI` and create the client with:
-   client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-4. Use `client.chat.completions.create(...)` for generating responses.
-5. Integrate tools or APIs mentioned in the prompt.
-6. Keep code modular and clean.
+   client = OpenAI()
+4. For all completions, use:
+   response = client.chat.completions.create(...)
+5. IMPORTANT: Access the response text using:
+   response.choices[0].message.content
+   (do NOT use dictionary indexing).
+6. Integrate tools or APIs mentioned in the prompt.
+7. Keep code modular and clean.
 
 Return only the Python code, no explanation or formatting. Output must be valid code that can be saved as `app.py` and run with Streamlit.
-
 """
 
 def extract_code(generated_text: str) -> str:
