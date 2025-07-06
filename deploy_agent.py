@@ -112,6 +112,9 @@ def deploy_agent(prompt: str) -> str:
         raise Exception(f"Render deploy hook failed: {response.text}")
 
     # Return the live Render URL
-    render_url = f"https://{repo_name}.onrender.com"
+    # render_url = f"https://{repo_name}.onrender.com"
+
+    # Return the existing Render service URL
+    render_url = "https://agent-template.onrender.com"
     return render_url
 
