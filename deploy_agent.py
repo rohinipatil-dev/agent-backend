@@ -17,13 +17,14 @@ You must:
 2. Use the OpenAI Python SDK (v1.0.0 or later). Do not use `openai.api_key = ...`.
 3. Use `from openai import OpenAI` and create the client with:
    client = OpenAI()
-4. For all completions, use:
+4. Do **NOT** import or use `ChatCompletion` or `Completion` directly.
+5. For all completions, use:
    response = client.chat.completions.create(...)
-5. IMPORTANT: Access the response text using:
+6. IMPORTANT: Access the response text using:
    response.choices[0].message.content
-   (do NOT use dictionary indexing).
-6. Integrate tools or APIs mentioned in the prompt.
-7. Keep code modular and clean.
+   (do NOT use dictionary-style indexing like response['choices'][0]['message']['content'])
+7. Integrate tools or APIs mentioned in the prompt.
+8. Keep code modular and clean.
 
 Return only the Python code, no explanation or formatting. Output must be valid code that can be saved as `app.py` and run with Streamlit.
 """
