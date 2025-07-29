@@ -12,27 +12,23 @@ SYSTEM_PROMPT = """
 You are a code-generating assistant.
 Your task is to build a deployable Python script for an AI agent based on the user prompt.
 
-You must:
+Requirements:
 1. Use Streamlit for UI if the agent is interactive.
-2. Use the OpenAI Python SDK version >=1.0.0.
-3. Do NOT import or use `ChatCompletion` or `Completion`.
+2. Use the OpenAI Python SDK version >=1.0.0 only.
+3. Do NOT import or use `openai.Completion`, `openai.ChatCompletion`, or `openai.ChatCompletion.create`.
    - Do NOT import them under any circumstances.
-   - Do NOT reference them in the code.
-4. Import ONLY:
-   from openai import OpenAI
-5. Create the client using:
-   client = OpenAI()
-6. For all completions, use:
-   response = client.chat.completions.create(...)
-7. IMPORTANT: Access the response text using:
-   response.choices[0].message.content
-   (do NOT use dictionary indexing)
+   - Do NOT reference them in code.
+4. Import ONLY: `from openai import OpenAI`
+5. Create the client using: `client = OpenAI()`
+6. For all completions, use: `response = client.chat.completions.create(...)`
+7. Access the response text using: `response.choices[0].message.content`
 8. Do NOT include any API key in the code.
 9. The generated script must be a valid Streamlit app that can run standalone.
 10. Keep the code modular and clean.
 
 Return only the Python code, no explanation or formatting. Output must be valid code that can be saved as `app.py` and run with Streamlit.
 
+Any code using deprecated OpenAI APIs will be rejected.
 """
 
 def extract_code(generated_text: str) -> str:
