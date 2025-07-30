@@ -56,6 +56,15 @@ def extract_code(generated_text: str) -> str:
 
     return text
 
+def validate_openai_api_usage(code: str):
+    deprecated_patterns = [
+        "openai.Completion", "openai.ChatCompletion", "openai.ChatCompletion.create",
+        "openai.api_key", "engine="
+    ]
+    for pattern in deprecated_patterns:
+        if pattern in code:
+            raise ValueError(f"Deprecated OpenAI API usage found: {pattern}")
+
 def deploy_agent(prompt: str) -> str:
     # Generate code
     messages = [
@@ -72,6 +81,9 @@ def deploy_agent(prompt: str) -> str:
 
     generated_code_raw = response.choices[0].message.content
     generated_code = extract_code(generated_code_raw)
+
+    # Validate the generated_code
+    validate_openai_api_usage(generated_code)
 
     # Build requirements
     requirements = ["streamlit", "openai"]
