@@ -64,6 +64,7 @@ def validate_openai_api_usage(code: str):
     for pattern in deprecated_patterns:
         if pattern in code:
             raise ValueError(f"Deprecated OpenAI API usage found: {pattern}")
+    return
 
 def deploy_agent(prompt: str) -> str:
     # Generate code
