@@ -95,7 +95,7 @@ def build_requirements_txt(code: str) -> str:
     built_in_stdlib = {
         "os", "sys", "re", "math", "time", "datetime", "json", "typing", "random",
         "pathlib", "logging", "collections", "subprocess", "threading", "itertools",
-        "functools", "http", "urllib", "shutil", "queue", "traceback", "enum", "base64"
+        "functools", "http", "urllib", "shutil", "queue", "traceback", "enum", "base64", "io"
     }
 
     # Final list of external dependencies
