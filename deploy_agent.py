@@ -1,5 +1,8 @@
 import os
 import re
+import sys
+import ast
+import pkgutil
 from datetime import datetime
 from github import Github
 import requests
@@ -69,6 +72,40 @@ def validate_openai_api_usage(code: str):
             raise ValueError(f"Deprecated OpenAI API usage found: {pattern}")
     return
 
+
+def build_requirements_txt(code: str) -> str:
+    # Parse the code into an AST
+    tree = ast.parse(code)
+
+    # Collect all imported module names
+    imported_modules = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imported_modules.add(alias.name.split('.')[0])
+        elif isinstance(node, ast.ImportFrom):
+            if node.module:
+                imported_modules.add(node.module.split('.')[0])
+
+    # Get standard library module names
+    stdlib_modules = {mod.name for mod in pkgutil.iter_modules() if mod.module_finder.path == sys.base_prefix + "/lib/python" + sys.version[:3]}
+
+    # These are definitely standard regardless of Python version
+    built_in_stdlib = {
+        "os", "sys", "re", "math", "time", "datetime", "json", "typing", "random",
+        "pathlib", "logging", "collections", "subprocess", "threading", "itertools",
+        "functools", "http", "urllib", "shutil", "queue", "traceback", "enum", "base64"
+    }
+
+    # Final list of external dependencies
+    external_packages = sorted(mod for mod in imported_modules if mod not in stdlib_modules and mod not in built_in_stdlib)
+
+    # Always include streamlit and openai
+    external_packages.extend(["streamlit", "openai"])
+
+    return "\n".join(sorted(set(external_packages)))
+
+
 def deploy_agent(prompt: str) -> str:
     # Generate code
     messages = [
@@ -90,18 +127,7 @@ def deploy_agent(prompt: str) -> str:
     validate_openai_api_usage(generated_code)
 
     # Build requirements
-    requirements = ["streamlit", "openai"]
-    lowered = generated_code.lower()
-    if "gensim" in lowered:
-        requirements.append("gensim")
-    if "youtube_transcript_api" in lowered:
-        requirements.append("youtube_transcript_api")
-    if "transformers" in lowered:
-        requirements.append("transformers")
-    if "requests" in lowered:
-        requirements.append("requests")
-
-    requirements_txt = "\n".join(sorted(set(requirements)))
+    requirements_txt = build_requirements_txt(generated_code)
 
     # GitHub and Render credentials
     github_token = os.environ["GITHUB_TOKEN"]
