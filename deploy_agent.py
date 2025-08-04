@@ -3,6 +3,7 @@ import re
 import sys
 import ast
 import pkgutil
+import time
 from datetime import datetime
 from github import Github
 import requests
@@ -179,6 +180,9 @@ def deploy_agent(prompt: str) -> str:
         content=requirements_txt,
         branch="main"
     )
+
+    #Add a delay of 5 seconds before triggering redploy
+    time.sleep(5)
 
     # Trigger redeploy
     response = requests.post(render_deploy_hook_url)
