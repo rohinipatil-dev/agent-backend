@@ -32,10 +32,28 @@ Requirements:
 9. Do NOT include any API key in the code.
 10. The generated script must be a valid Streamlit app that can run standalone.
 11. Keep the code modular and clean.
+12. If the prompt includes or implies a Retrieval-Augmented Generation (RAG) model:
+    a. Accept a PDF upload from the user.
+    b. Extract text from the PDF using PyPDF2.
+    c. Chunk the text into ~500-character segments.
+    d. Generate embeddings for each chunk using `text-embedding-3-small` via OpenAI SDK.
+    e. Store embeddings in a FAISS index.
+    f. When the user enters a query:
+       - Generate an embedding for the query.
+       - Use FAISS to retrieve the top 3 most relevant chunks.
+       - Construct a prompt that includes only these chunks as context along with the user query.
+       - Use `client.chat.completions.create(...)` to generate the answer.
+13. Required third-party libraries: `streamlit`, `PyPDF2`, `faiss`, `tiktoken`, `openai`.
+14. Do not use LangChain or any other external framework.
+15. Do not use deprecated PyPDF2 interfaces like `PdfFileReader` or `getPage()`. 
+    Instead, use `PdfReader`, `pdf.pages[i]`, and `page.extract_text()`.
+16. The script must not use any deprecated functions, classes, or access patterns 
+    from PyPDF2, OpenAI, or any other library. All usage must be compatible with 
+    the latest stable versions of each package.
 
 Return only the Python code, no explanation or formatting. Output must be valid code that can be saved as `app.py` and run with Streamlit.
 
-Any code using deprecated OpenAI APIs or models will be rejected.
+Any code using deprecated OpenAI or PyPDF2 APIs will be rejected.
 """
 
 def extract_code(generated_text: str) -> str:
