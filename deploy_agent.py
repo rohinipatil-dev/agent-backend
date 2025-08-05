@@ -81,14 +81,22 @@ def extract_code(generated_text: str) -> str:
 
     return text
 
-def validate_openai_api_usage(code: str):
-    deprecated_patterns = [
-        "openai.Completion", "openai.ChatCompletion", "openai.ChatCompletion.create",
-        "openai.api_key", "engine="
+    def validate_openai_api_usage(code: str):
+    forbidden_patterns = [
+        "openai.Completion",
+        "openai.ChatCompletion",
+        "openai.ChatCompletion.create",
+        "openai.api_key",
+        "engine=",
+        "from tiktoken import Tokenizer",
+        "from tiktoken import models",
+        "Tokenizer(",
+        "from openai.api_resources",
+        "openai.api_resources.",
     ]
-    for pattern in deprecated_patterns:
+    for pattern in forbidden_patterns:
         if pattern in code:
-            raise ValueError(f"Deprecated OpenAI API usage found: {pattern}")
+            raise ValueError(f"Invalid or deprecated usage found: {pattern}")
     return
 
 
