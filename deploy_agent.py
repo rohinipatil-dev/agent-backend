@@ -51,8 +51,27 @@ If the prompt involves Retrieval-Augmented Generation (RAG):
         input=chunk
     )
     Access the embedding via: response.data[0].embedding
-17. Store and search vector data using ChromaDB:
-    - Use either in-memory or persistent DB via chromadb.PersistentClient(path="./chroma_db").
+17. Use ChromaDB to store and search vector data. Use either in-memory or persistent DB:
+
+```python
+import chromadb
+from chromadb.config import Settings
+
+client = chromadb.PersistentClient(path="./chroma_db")  # or chromadb.Client() for in-memory
+collection = client.get_or_create_collection(name="docs")
+
+# To insert documents:
+collection.add(
+    documents=[chunk],  # or list of chunks
+    embeddings=[embedding],  # or list of embeddings
+    ids=[f"id_{i}"]  # unique ID per document
+)
+
+# To query:
+results = collection.query(
+    query_embeddings=[query_embedding],
+    n_results=3
+)```
 18. For user queries:
     - Generate an embedding.
     - Use ChromaDB to retrieve top 3 relevant chunks.
