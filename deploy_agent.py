@@ -75,6 +75,8 @@ def validate_openai_api_usage(code: str):
 
 
 def build_requirements_txt(code: str) -> str:
+    import sys
+
     # Parse the code into an AST
     tree = ast.parse(code)
 
@@ -88,15 +90,18 @@ def build_requirements_txt(code: str) -> str:
             if node.module:
                 imported_modules.add(node.module.split('.')[0])
 
-    # Get standard library module names
-    stdlib_modules = {mod.name for mod in pkgutil.iter_modules() if mod.module_finder.path == sys.base_prefix + "/lib/python" + sys.version[:3]}
-
     # These are definitely standard regardless of Python version
     built_in_stdlib = {
         "os", "sys", "re", "math", "time", "datetime", "json", "typing", "random",
         "pathlib", "logging", "collections", "subprocess", "threading", "itertools",
         "functools", "http", "urllib", "shutil", "queue", "traceback", "enum", "base64", "io"
     }
+
+    # Get standard library module names using sys.stdlib_module_names if available (Python 3.10+)
+    if hasattr(sys, "stdlib_module_names"):
+        stdlib_modules = set(sys.stdlib_module_names)
+    else:
+        stdlib_modules = built_in_stdlib  # fallback for older Python versions
 
     # Final list of external dependencies
     external_packages = sorted(mod for mod in imported_modules if mod not in stdlib_modules and mod not in built_in_stdlib)
@@ -105,7 +110,6 @@ def build_requirements_txt(code: str) -> str:
     external_packages.extend(["streamlit", "openai"])
 
     return "\n".join(sorted(set(external_packages)))
-
 
 def deploy_agent(prompt: str) -> str:
     # Generate code
