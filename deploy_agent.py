@@ -107,8 +107,8 @@ def extract_code(generated_text: str) -> str:
 
     return text
 
-    def validate_openai_api_usage(code: str):
-        forbidden_patterns = [
+def validate_openai_api_usage(code: str):
+    forbidden_patterns = [
         "openai.Completion",
         "openai.ChatCompletion",
         "openai.ChatCompletion.create",
