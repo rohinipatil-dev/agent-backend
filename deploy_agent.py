@@ -19,41 +19,67 @@ Your task is to build a deployable Python script for an AI agent based on the us
 Requirements:
 1. Use Streamlit for UI if the agent is interactive.
 2. Use ONLY the OpenAI Python SDK version >=1.0.0.
-3. Do NOT use or import `openai.Completion`, `openai.ChatCompletion`, or any deprecated models like `text-davinci-003` or `text-davinci-002`.
-4. For all OpenAI completions, use chat models: ONLY `gpt-3.5-turbo` or `gpt-4` with `client.chat.completions.create(...)`.
-5. Import ONLY: `from openai import OpenAI`
-6. Create the client using: `client = OpenAI()`
+3. DO NOT use or import:
+   - openai.Completion
+   - openai.ChatCompletion
+   - Any deprecated models like text-davinci-003, text-davinci-002, or gpt-3.5-turbo-0301
+   - Anything from openai.api_resources or its submodules
+   - Specifically, DO NOT write or suggest: from openai.api_resources import Completion
+   - DO NOT use or suggest client.text_embedding.create(...) or openai.Embedding.create(...) — it is invalid and will cause an AttributeError
+4. For all OpenAI completions, use chat models ONLY: gpt-3.5-turbo or gpt-4 with client.chat.completions.create(...).
+5. Import ONLY: from openai import OpenAI
+6. Create the client using: client = OpenAI()
 7. For chat completions, use:
    response = client.chat.completions.create(
        model="gpt-3.5-turbo",  # or "gpt-4"
        messages=[{"role": "system", "content": "You are a helpful assistant."}, ...]
    )
-8. Access the response text using: `response.choices[0].message.content`
+8. Access the response text using: response.choices[0].message.content
 9. Do NOT include any API key in the code.
 10. The generated script must be a valid Streamlit app that can run standalone.
 11. Keep the code modular and clean.
-12. If the prompt includes or implies a Retrieval-Augmented Generation (RAG) model:
-    a. Accept a PDF upload from the user.
-    b. Extract text from the PDF using PyPDF2.
-    c. Chunk the text into ~500-character segments.
-    d. Generate embeddings for each chunk using `text-embedding-3-small` via OpenAI SDK.
-    e. Store embeddings in a FAISS index.
-    f. When the user enters a query:
-       - Generate an embedding for the query.
-       - Use FAISS to retrieve the top 3 most relevant chunks.
-       - Construct a prompt that includes only these chunks as context along with the user query.
-       - Use `client.chat.completions.create(...)` to generate the answer.
-13. Required third-party libraries: `streamlit`, `PyPDF2`, `faiss`, `tiktoken`, `openai`.
-14. Do not use LangChain or any other external framework.
-15. Do not use deprecated PyPDF2 interfaces like `PdfFileReader` or `getPage()`. 
-    Instead, use `PdfReader`, `pdf.pages[i]`, and `page.extract_text()`.
-16. The script must not use any deprecated functions, classes, or access patterns 
-    from PyPDF2, OpenAI, or any other library. All usage must be compatible with 
-    the latest stable versions of each package.
 
-Return only the Python code, no explanation or formatting. Output must be valid code that can be saved as `app.py` and run with Streamlit.
+If the prompt involves Retrieval-Augmented Generation (RAG):
+12. Accept a PDF upload from the user.
+13. Extract text from the PDF using: from PyPDF2 import PdfReader
+14. Use PdfReader(uploaded_file), loop through pdf.pages, and call page.extract_text() to get content.
+15. Chunk the text into approximately 500-character segments.
+16. Generate embeddings for each chunk using text-embedding-3-small with the OpenAI SDK.
+    Use:
+    response = client.embeddings.create(
+        model="text-embedding-3-small",
+        input=chunk
+    )
+    Access the embedding via: response.data[0].embedding
+17. Store and search vector data using ChromaDB:
+    - Use either in-memory or persistent DB via chromadb.PersistentClient(path="./chroma_db").
+18. For user queries:
+    - Generate an embedding.
+    - Use ChromaDB to retrieve top 3 relevant chunks.
+    - Construct a context-based prompt from those chunks and query.
+    - Use client.chat.completions.create(...) to generate the answer.
 
-Any code using deprecated OpenAI or PyPDF2 APIs will be rejected.
+Library and import rules:
+19. Required third-party libraries: streamlit, PyPDF2, chromadb, tiktoken, openai
+20. Never use LangChain or any other external framework.
+21. Never use deprecated PyPDF2 interfaces like PdfFileReader, getPage(), or any import from PyPDF2.pdf. Only use PdfReader and pdf.pages[i] with extract_text().
+22. Never use or suggest faiss as a vector store.
+23. Never mention or include from chromadb import ChromaDB.
+24. Do not use any deprecated OpenAI, PyPDF2, or ChromaDB APIs or functions.
+
+tiktoken rules:
+25. NEVER write or suggest: from tiktoken import Tokenizer or from tiktoken import models or anything similar. These are invalid and will break the app.
+26. Do NOT use or reference the Tokenizer class from tiktoken.
+27. If token counting is needed, use:
+    import tiktoken
+    encoding = tiktoken.get_encoding("cl100k_base")
+    num_tokens = len(encoding.encode(text))
+28. Do NOT import from openai.api_resources or any of its submodules such as openai.api_resources.experimental.
+
+Final output:
+29. Return ONLY the full Python code in a single block. Do NOT include explanations, comments, or markdown outside the code block.
+
+Any code violating these instructions will be considered invalid.
 """
 
 def extract_code(generated_text: str) -> str:
