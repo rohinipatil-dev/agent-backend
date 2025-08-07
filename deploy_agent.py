@@ -138,7 +138,7 @@ def deploy_agent(prompt: str) -> str:
 
         logger.info("Calling OpenAI API to generate code")
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o",
             messages=messages,
             temperature=0.3,
             max_tokens=2000
@@ -202,12 +202,12 @@ def deploy_agent(prompt: str) -> str:
             }
         }
 
-        logger.info(f"Payload to Render: {json.dumps(payload, indent=2)}")
+        #logger.info(f"Payload to Render: {json.dumps(payload, indent=2)}")
         logger.info("Triggering Render deployment")
 
         render_response = requests.post(render_api_url, headers=headers, json=payload)
         if not render_response.ok:
-            logger.error(f"Failed payload: {json.dumps(payload)}")
+            #logger.error(f"Failed payload: {json.dumps(payload)}")
             logger.error(f"Response: {render_response.text}")
             raise Exception(f"Render API call failed: {render_response.text}")
 
@@ -218,7 +218,7 @@ def deploy_agent(prompt: str) -> str:
         service_data = render_response.json()
         service_id = service_data.get("service", {}).get("id")
         if not service_id:
-            raise Exception(f"No service ID returned from Render: {service_data}")
+            raise Exception(f"No service ID returned from Render")
 
         logger.info(f"Deployment started for service ID: {service_id}")
 
