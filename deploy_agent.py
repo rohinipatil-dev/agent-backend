@@ -2,14 +2,25 @@ import os
 import re
 import sys
 import ast
-import pkgutil
 import time
+import uuid
+import logging
+import pkgutil
 from datetime import datetime
+from threading import Lock
 from github import Github
 import requests
 from openai import OpenAI
+import json
 
-# Initialize OpenAI
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Lock to handle concurrency so only one deployment can happen at a time
+deploy_lock = Lock()
+
+# Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 SYSTEM_PROMPT = """
@@ -38,6 +49,7 @@ Return only the Python code, no explanation or formatting. Output must be valid 
 Any code using deprecated OpenAI APIs or models will be rejected.
 """
 
+# Extracts Python code from the generated response
 def extract_code(generated_text: str) -> str:
     text = generated_text.strip()
 
@@ -63,6 +75,7 @@ def extract_code(generated_text: str) -> str:
 
     return text
 
+# Ensures OpenAI SDK usage meets expected guidelines
 def validate_openai_api_usage(code: str):
     deprecated_patterns = [
         "openai.Completion", "openai.ChatCompletion", "openai.ChatCompletion.create",
@@ -73,7 +86,7 @@ def validate_openai_api_usage(code: str):
             raise ValueError(f"Deprecated OpenAI API usage found: {pattern}")
     return
 
-
+# Generates a requirements.txt from the generated code
 def build_requirements_txt(code: str) -> str:
     import sys
 
@@ -111,88 +124,127 @@ def build_requirements_txt(code: str) -> str:
 
     return "\n".join(sorted(set(external_packages)))
 
+# Main function to deploy an agent based on user prompt
 def deploy_agent(prompt: str) -> str:
-    # Generate code
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": prompt}
-    ]
+    with deploy_lock:
+        logger.info("Starting deployment for new agent prompt")
 
-    response = client.chat.completions.create(
-        model="gpt-4",
-        messages=messages,
-        temperature=0.3,
-        max_tokens=2000
-    )
+        # Construct conversation for OpenAI
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt}
+        ]
 
-    generated_code_raw = response.choices[0].message.content
-    generated_code = extract_code(generated_code_raw)
-
-    # Validate the generated_code
-    validate_openai_api_usage(generated_code)
-
-    # Build requirements
-    requirements_txt = build_requirements_txt(generated_code)
-
-    # GitHub and Render credentials
-    github_token = os.environ["GITHUB_TOKEN"]
-    github_username = os.environ["GITHUB_USERNAME"]
-    render_deploy_hook_url = os.environ["RENDER_DEPLOY_HOOK_URL"]
-
-    # Initialize GitHub
-    g = Github(github_token)
-
-    # Get the existing repo (IMPORTANT: this must be the repo your Render service uses)
-    repo = g.get_user().get_repo("agent-template")
-
-    # Delete old app.py if exists
-    try:
-        contents = repo.get_contents("app.py")
-        repo.delete_file(
-            contents.path,
-            "Delete old app.py",
-            contents.sha,
-            branch="main"
+        logger.info("Calling OpenAI API to generate code")
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=messages,
+            temperature=0.3,
+            max_tokens=2000
         )
-    except Exception:
-        pass
 
-    # Create new app.py
-    repo.create_file(
-        "app.py",
-        "Add new app.py",
-        content=generated_code,
-        branch="main"
-    )
+        # Extract the generated Python code
+        generated_code_raw = response.choices[0].message.content
+        generated_code = extract_code(generated_code_raw)
 
-    # Delete old requirements.txt if exists
-    try:
-        contents = repo.get_contents("requirements.txt")
-        repo.delete_file(
-            contents.path,
-            "Delete old requirements.txt",
-            contents.sha,
-            branch="main"
-        )
-    except Exception:
-        pass
+        # Validate and build requirements
+        validate_openai_api_usage(generated_code)
+        requirements_txt = build_requirements_txt(generated_code)
 
-    # Create new requirements.txt
-    repo.create_file(
-        "requirements.txt",
-        "Add new requirements.txt",
-        content=requirements_txt,
-        branch="main"
-    )
+        # Get credentials from environment
+        github_token = os.environ["GITHUB_TOKEN"]
+        github_username = os.environ["GITHUB_USERNAME"]
+        render_api_key = os.environ["RENDER_API_KEY"]
 
-    #Add a delay of 5 seconds before triggering redploy
-    time.sleep(5)
+        # Create a unique GitHub repository
+        logger.info("Creating unique GitHub repo")
+        g = Github(github_token)
+        user = g.get_user()
 
-    # Trigger redeploy
-    response = requests.post(render_deploy_hook_url)
-    if not response.ok:
-        raise Exception(f"Render deploy hook failed: {response.text}")
+        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        unique_id = uuid.uuid4().hex[:6]
+        repo_name = f"agent-{timestamp}-{unique_id}"
 
-    # Return the URL of your agent-template Render app
-    return "https://agent-template-e5fi.onrender.com"
+        repo = user.create_repo(name=repo_name, private=False, auto_init=True)
 
+        # Upload files to the repo
+        logger.info(f"Repo created: {repo_name}. Uploading files")
+        repo.create_file("app.py", "Add app.py", content=generated_code, branch="main")
+        repo.create_file("requirements.txt", "Add requirements.txt", content=requirements_txt, branch="main")
+
+        # Prepare deployment on Render
+        render_api_url = "https://api.render.com/v1/services"
+        headers = {
+            "Authorization": f"Bearer {render_api_key}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "ownerId": "tea-d1jrfj6mcj7s73a8ppu0",  # Replace with your actual ownerId
+            "name": repo_name,
+            "repo": f"https://github.com/{github_username}/{repo_name}",
+            "branch": "main",
+            "type": "web_service",
+            "plan": "starter",
+            "serviceDetails": {
+                "env": "python",
+                "envSpecificDetails": {
+                    "buildCommand": "pip install -r requirements.txt",
+                    "startCommand": "streamlit run app.py",
+                    "pythonVersion": "3.10"
+                },
+                "autoDeploy": True
+            }
+        }
+
+        logger.info(f"Payload to Render: {json.dumps(payload, indent=2)}")
+        logger.info("Triggering Render deployment")
+
+        render_response = requests.post(render_api_url, headers=headers, json=payload)
+        if not render_response.ok:
+            logger.error(f"Failed payload: {json.dumps(payload)}")
+            logger.error(f"Response: {render_response.text}")
+            raise Exception(f"Render API call failed: {render_response.text}")
+
+        # Wait briefly for service registration
+        time.sleep(3)
+
+        # Get service ID from the response
+        service_data = render_response.json()
+        service_id = service_data.get("service", {}).get("id")
+        if not service_id:
+            raise Exception(f"No service ID returned from Render: {service_data}")
+
+        logger.info(f"Deployment started for service ID: {service_id}")
+
+        # Poll for deployment status
+        max_wait_time = 300  # seconds
+        poll_interval = 10  # seconds
+        elapsed_time = 0
+        deployment_url = None
+
+        while elapsed_time < max_wait_time:
+            deploys_resp = requests.get(
+                f"https://api.render.com/v1/services/{service_id}/deploys",
+                headers=headers
+            )
+            if deploys_resp.ok:
+                deploys = deploys_resp.json()
+                if deploys and isinstance(deploys, list):
+                    latest = deploys[0]
+                    status = latest.get("status")
+                    logger.info(f"Deployment status: {status}")
+                    if status == "live":
+                        deployment_url = service_data.get("serviceDetails", {}).get("url")
+                        break
+                    elif status in ["build_failed", "update_failed", "canceled"]:
+                        raise Exception(f"Deployment failed: status={status}")
+            time.sleep(poll_interval)
+            elapsed_time += poll_interval
+
+        # If no URL from serviceDetails, construct default URL
+        if not deployment_url:
+            deployment_url = f"https://{repo_name}.onrender.com"
+
+        logger.info(f"Deployment completed. App URL: {deployment_url}")
+        return deployment_url
