@@ -13,6 +13,7 @@ import requests
 from openai import OpenAI
 import json
 
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -155,6 +156,7 @@ def deploy_agent(prompt: str) -> str:
         github_token = os.environ["GITHUB_TOKEN"]
         github_username = os.environ["GITHUB_USERNAME"]
         render_api_key = os.environ["RENDER_API_KEY"]
+        openai_api_key = os.environ["OPENAI_API_KEY"]
 
         # Create a unique GitHub repository
         logger.info("Creating unique GitHub repo")
@@ -186,6 +188,9 @@ def deploy_agent(prompt: str) -> str:
             "branch": "main",
             "type": "web_service",
             "plan": "starter",
+            "envVars": [
+                {"key": "OPENAI_API_KEY", "value": openai_api_key}
+                ],
             "serviceDetails": {
                 "env": "python",
                 "envSpecificDetails": {
@@ -193,7 +198,7 @@ def deploy_agent(prompt: str) -> str:
                     "startCommand": "streamlit run app.py",
                     "pythonVersion": "3.10"
                 },
-                "autoDeploy": True
+            "autoDeploy": True
             }
         }
 
