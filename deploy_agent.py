@@ -25,8 +25,9 @@ deploy_lock = Lock()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 SYSTEM_PROMPT = """
-You are a code-generating assistant.
+You are an expert software engineer.
 Your task is to build a deployable Python script for an AI agent based on the user prompt.
+Generate code that uses only supported classes and methods from the latest stable version of the specified language or library.
 
 Requirements:
 1. Use Streamlit for UI if the agent is interactive.
@@ -37,7 +38,7 @@ Requirements:
 6. Create the client using: `client = OpenAI()`
 7. For chat completions, use:
    response = client.chat.completions.create(
-       model="gpt-3.5-turbo",  # or "gpt-4"
+       model="gpt-5",  # or "gpt-4"
        messages=[{"role": "system", "content": "You are a helpful assistant."}, ...]
    )
 8. Access the response text using: `response.choices[0].message.content`
@@ -138,15 +139,18 @@ def deploy_agent(prompt: str) -> str:
 
         logger.info("Calling OpenAI API to generate code")
         response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=messages,
-            temperature=0.3,
-            max_tokens=2000
+            model="gpt-5",
+            messages=messages
         )
 
         # Extract the generated Python code
         generated_code_raw = response.choices[0].message.content
+        # Log the raw output so you can inspect exactly what the model returned
+        logger.debug("RAW MODEL OUTPUT:\n%s", generated_code_raw)
+
         generated_code = extract_code(generated_code_raw)
+        # Also log the extracted code
+        logger.debug("EXTRACTED CODE:\n%s", generated_code if generated_code else "[EMPTY]")
 
         # Validate and build requirements
         validate_openai_api_usage(generated_code)
@@ -157,6 +161,7 @@ def deploy_agent(prompt: str) -> str:
         github_username = os.environ["GITHUB_USERNAME"]
         render_api_key = os.environ["RENDER_API_KEY"]
         openai_api_key = os.environ["OPENAI_API_KEY"]
+        render_owner_id = os.environ["RENDER_OWNER_ID"]
 
         # Create a unique GitHub repository
         logger.info("Creating unique GitHub repo")
@@ -182,7 +187,7 @@ def deploy_agent(prompt: str) -> str:
         }
 
         payload = {
-            "ownerId": "tea-d1jrfj6mcj7s73a8ppu0",  # Replace with your actual ownerId
+            "ownerId": render_owner_id,  # Replace with your actual ownerId
             "name": repo_name,
             "repo": f"https://github.com/{github_username}/{repo_name}",
             "branch": "main",
@@ -240,7 +245,7 @@ def deploy_agent(prompt: str) -> str:
                     status = latest.get("status")
                     logger.info(f"Deployment status: {status}")
                     if status == "live":
-                        deployment_url = service_data.get("serviceDetails", {}).get("url")
+                        deployment_url = service_data.get("service", {}).get("serviceDetails", {}).get("url")
                         break
                     elif status in ["build_failed", "update_failed", "canceled"]:
                         raise Exception(f"Deployment failed: status={status}")
