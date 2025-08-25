@@ -41,6 +41,11 @@ pip install -r requirements.txt
 Set your OpenAI API Key:
 export OPENAI_API_KEY="sk-..."
 
+## Export .env
+set -a
+source .env
+set +a
+
 Run the server:
 uvicorn main:app --reload --port 10000
 
@@ -48,15 +53,15 @@ uvicorn main:app --reload --port 10000
 
 This backend can be deployed to Render, Heroku, or any cloud platform that supports Python.
 
-Recommended start command for Render:
-streamlit run generated_agent/app.py --server.port 10000
+Recommended start command to generate the agent:
+curl http://localhost:10000/build-agent      -H "Content-Type: application/json"      -d '{"prompt":"Create a chatbot that answers python programming questions"}'
 
 Make sure to configure environment variables (such as OPENAI_API_KEY) in your deployment settings.
 
 ## Frontend
 The backend is designed to integrate with the Autothinker Agent Forge frontend:
 
-https://autothinker-agent-forge.lovable.app
+https://autothinker.org/
 
 Frontend sends prompt data to the backend endpoint (/build-agent) and displays the generated app URL to the user.
 
@@ -74,4 +79,4 @@ For access requests, inquiries, or partnership discussions, please contact:
 
 Rohini Patil
 AutoThinker AI
-rohiniveereshpatil@gmail.com
+rohini.patil@autothinker.org
