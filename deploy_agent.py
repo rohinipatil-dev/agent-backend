@@ -126,6 +126,16 @@ def build_requirements_txt(code: str) -> str:
 
     return "\n".join(sorted(set(external_packages)))
 
+def build_build_sh() -> str:
+    """Create the build.sh content."""
+    return """#!/bin/bash
+            set -e
+            echo "Starting build.sh..."
+            echo "Installing dependencies..."
+            pip install --upgrade pip
+            pip install -r requirements.txt
+        """
+
 # Main function to deploy an agent based on user prompt
 def deploy_agent(prompt: str) -> str:
     with deploy_lock:
@@ -155,6 +165,7 @@ def deploy_agent(prompt: str) -> str:
         # Validate and build requirements
         validate_openai_api_usage(generated_code)
         requirements_txt = build_requirements_txt(generated_code)
+        build_sh_content = build_build_sh()
 
         # Get credentials from environment
         github_token = os.environ["GITHUB_TOKEN"]
@@ -171,14 +182,23 @@ def deploy_agent(prompt: str) -> str:
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         unique_id = uuid.uuid4().hex[:6]
         repo_name = f"agent-{timestamp}-{unique_id}"
-
         repo = user.create_repo(name=repo_name, private=False, auto_init=True)
+        
+        # Commit all files in a single commit
+        commit_message = "Initial commit with app.py, requirements.txt, build.sh"
+        repo.create_file("app.py", commit_message, generated_code, branch="main")
+        repo.create_file("requirements.txt", commit_message, requirements_txt, branch="main")
+        repo.create_file("build.sh", commit_message, build_sh_content, branch="main")
+        logger.info(f"Created GitHub repo: {repo_name}")
 
-        # Upload files to the repo
-        logger.info(f"Repo created: {repo_name}. Uploading files")
-        repo.create_file("app.py", "Add app.py", content=generated_code, branch="main")
-        repo.create_file("requirements.txt", "Add requirements.txt", content=requirements_txt, branch="main")
+        # Make build.sh executable locally for reference
+        # os.chmod("build.sh", 0o755)
 
+        # Wait for GitHub commit to propagate
+        time.sleep(5)
+
+
+        
         # Prepare deployment on Render
         render_api_url = "https://api.render.com/v1/services"
         headers = {
@@ -199,8 +219,8 @@ def deploy_agent(prompt: str) -> str:
             "serviceDetails": {
                 "env": "python",
                 "envSpecificDetails": {
-                    "buildCommand": "pip install -r requirements.txt",
-                    "startCommand": "streamlit run app.py",
+                    "buildCommand": "./build.sh",
+                    "startCommand": "streamlit run app.py --server.port $PORT --server.address 0.0.0.0",
                     "pythonVersion": "3.10"
                 },
             "autoDeploy": True
